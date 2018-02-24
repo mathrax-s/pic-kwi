@@ -76,6 +76,7 @@ void mp3_send_cmd(uint8_t cmd, uint16_t high_arg, uint16_t low_arg) {
 }
 
 // アナログ値の入力処理
+
 unsigned int adconv(uint8_t ch) {
     unsigned int temp;
     ADCON0 |= (ch << 2);
@@ -90,6 +91,7 @@ unsigned int adconv(uint8_t ch) {
 unsigned int num;
 unsigned char status;
 unsigned char vol = 0;
+unsigned int timeCount = 0;
 
 void main(void) {
     OSCCON = 0b01110000;
@@ -100,15 +102,31 @@ void main(void) {
     __delay_us(5); // アナログ変換情報が設定されるまでとりあえず待つ
 
     TRISA = 0b00000000;
-    TRISC = 0b00001100; //C2
+    TRISC = 0b00000000; //C2
     ANSELA = 0b00000000;
-    ANSELC = 0b00001100; //C2
+    ANSELC = 0b00000000; //C2
 
-    TRISCbits.TRISC5 = 1;
+    //ANALOG
+    //C2 AN6 -- RPR220
+    //C3 AN7 -- POT
+    TRISCbits.TRISC2 = 1;
+    //    WPUCbits.WPUC2 = 1;
+    TRISCbits.TRISC3 = 1;
+    ANSELCbits.ANSC2 = 1;
+    ANSELCbits.ANSC3 = 1;
+
+    //IR-LED
+    //C0 -- IR-LED
+    TRISCbits.TRISC0 = 0;
+
+    //TX C4,RX C1
+    TRISCbits.TRISC4 = 0;
+    TRISCbits.TRISC1 = 1;
     RC4PPS = 0b10100; // 出力(TXを割当てる)
-    RXPPS = 0b10101; // 入力(RC5を割当てる:デフォルト)
-    
+    RXPPS = 0b10001; // 入力(RC1を割当てる:デフォルト)
 
+    //TEST LED
+    TRISAbits.TRISA2 = 0;
 
     SYNC = 0;
     BRGH = 0;
@@ -134,54 +152,96 @@ void main(void) {
 
     unsigned int i;
     for (i = 0; i < 10; i++) {
-        LATAbits.LATA5 = 1;
+        LATAbits.LATA2 = 1;
         __delay_ms(50);
-        LATAbits.LATA5 = 0;
+        LATAbits.LATA2 = 0;
         __delay_ms(50);
     }
 
-    for (i = 20; i > 0; i--) {
-        //Volume
-        mp3_send_cmd(6, 0, i);
-    }
+    //Volume 0
+    mp3_send_cmd(6, 0, 0);
+
     //Pause
     mp3_send_cmd(0x0E, 0, 0);
 
     //PLAY '01/001.mp3'
     mp3_send_cmd(0x0F, 1, 1);
+    //Repeat Play
     mp3_send_cmd(0x11, 0, 1);
 
-    
+
     while (1) {
-        num = adconv(6);
-        if (num > 500) {
+
+        LATCbits.LATC0 = 1;
+        num = adconv(6) / 4;
+        __delay_ms(50);
+
+        LATCbits.LATC0 = 0;
+        __delay_ms(50);
+
+        //RPR220 on
+        //        while (!TRMT);
+        //        TXREG = num;
+
+        if (num < 150) {
+
             if (status == 0) {
                 status = 1;
+                timeCount = 0;
+                LATAbits.LATA2 = 0;
+                //Play
                 mp3_send_cmd(0x0D, 0, 0);
             }
-            vol++;
-            if (vol > 30) {
-                //                    status = 1;
-                vol = 30;
-            }
-            //Volume
-            mp3_send_cmd(6, 0, vol);
 
-            //            }
+            //20sec count
+            if (status == 1) {
+                timeCount++;
+                if (timeCount < 200) {
+
+                    //Fadein
+                    vol++;
+                    if (vol > 10) {
+                        vol = 10;
+                    }
+                    //Volume Fadein
+                    mp3_send_cmd(6, 0, vol);
+
+                } else {
+                    timeCount = 200;
+                    LATAbits.LATA2 = 1;
+
+                    //Fadeout
+                    vol--;
+                    if (vol < 1) {
+                        vol = 1;
+                        //Pause
+                        mp3_send_cmd(0x0E, 0, 0);
+                    } else {
+                        //Volume Fadeout
+                        mp3_send_cmd(6, 0, vol);
+                    }
+
+                }
+            }
+
         } else {
-            //            if (status == 1) {
+
+            //Fadeout
             vol--;
             if (vol < 1) {
+                LATAbits.LATA2 = 1;
                 status = 0;
                 vol = 1;
+                //Pause
                 mp3_send_cmd(0x0E, 0, 0);
+            } else {
+                //Volume Fadeout
+                mp3_send_cmd(6, 0, vol);
             }
-            //Volume
-            mp3_send_cmd(6, 0, vol);
-            //Pause
-            //                
-            //            }
+
         }
+
+
     }
 
 
