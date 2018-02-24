@@ -8,7 +8,7 @@
 #pragma config FOSC = INTOSC    // Oscillator Selection Bits (INTOSC oscillator: I/O function on CLKIN pin)
 #pragma config WDTE = OFF       // Watchdog Timer Enable (WDT disabled)
 #pragma config PWRTE = OFF      // Power-up Timer Enable (PWRT disabled)
-#pragma config MCLRE = ON       // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
+#pragma config MCLRE = OFF       // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
 #pragma config CP = OFF         // Flash Program Memory Code Protection (Program memory code protection is disabled)
 #pragma config BOREN = ON       // Brown-out Reset Enable (Brown-out Reset enabled)
 #pragma config CLKOUTEN = OFF   // Clock Out Enable (CLKOUT function is disabled. I/O or oscillator function on the CLKOUT pin)
@@ -29,7 +29,7 @@
 #include <xc.h>
 #include <stdint.h>
 #include <stddef.h>
-#define _XTAL_FREQ  32000000
+#include "main.h"
 
 uint8_t send_buf[10] = {
     0x7E, 0xFF, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xEF
@@ -76,7 +76,6 @@ void mp3_send_cmd(uint8_t cmd, uint16_t high_arg, uint16_t low_arg) {
 }
 
 // アナログ値の入力処理
-
 unsigned int adconv(uint8_t ch) {
     unsigned int temp;
     ADCON0 |= (ch << 2);
@@ -84,7 +83,7 @@ unsigned int adconv(uint8_t ch) {
     while (GO_nDONE); // PICが読取り完了するまで待つ
     temp = ADRESH; // PICは読取った値をADRESHとADRESLのレジスターにセットする
     temp = (temp << 8) | ADRESL; // 10ビットの分解能力
-    __delay_us(10);
+    __delay_us(100);
     return temp;
 }
 
@@ -101,13 +100,15 @@ void main(void) {
     __delay_us(5); // アナログ変換情報が設定されるまでとりあえず待つ
 
     TRISA = 0b00000000;
-    TRISC = 0b00000100; //C2
+    TRISC = 0b00001100; //C2
     ANSELA = 0b00000000;
-    ANSELC = 0b00000100; //C2
+    ANSELC = 0b00001100; //C2
 
     TRISCbits.TRISC5 = 1;
     RC4PPS = 0b10100; // 出力(TXを割当てる)
     RXPPS = 0b10101; // 入力(RC5を割当てる:デフォルト)
+    
+
 
     SYNC = 0;
     BRGH = 0;
@@ -153,7 +154,7 @@ void main(void) {
     
     while (1) {
         num = adconv(6);
-        if (num < 1000) {
+        if (num > 500) {
             if (status == 0) {
                 status = 1;
                 mp3_send_cmd(0x0D, 0, 0);
