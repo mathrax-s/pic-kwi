@@ -88,7 +88,11 @@ unsigned int adconv(uint8_t ch) {
     return temp;
 }
 
-unsigned int num;
+int abval(int val) {
+    return (val < 0 ? (-val) : val);
+}
+
+unsigned int num1, num2;
 unsigned char status;
 unsigned char vol = 0;
 unsigned int timeCount = 0;
@@ -158,88 +162,90 @@ void main(void) {
         __delay_ms(50);
     }
 
-    //Volume 0
-    mp3_send_cmd(6, 0, 0);
-
-    //Pause
-    mp3_send_cmd(0x0E, 0, 0);
-
     //PLAY '01/001.mp3'
     mp3_send_cmd(0x0F, 1, 1);
     //Repeat Play
     mp3_send_cmd(0x11, 0, 1);
 
+    //Volume 0
+    mp3_send_cmd(6, 0, 1);
+
+    //Pause
+    mp3_send_cmd(0x0E, 0, 0);
+    status = 0;
+    vol = 1;
 
     while (1) {
 
-        LATCbits.LATC0 = 1;
-        num = adconv(6) / 4;
+        LATCbits.LATC0 = 0;
+        num1 = adconv(6) / 4;
         __delay_ms(50);
 
-        LATCbits.LATC0 = 0;
+        LATCbits.LATC0 = 1;
+        num2 = adconv(6) / 4;
         __delay_ms(50);
 
         //RPR220 on
-        //        while (!TRMT);
-        //        TXREG = num;
-
-        if (num < 150) {
-
-            if (status == 0) {
-                status = 1;
-                timeCount = 0;
-                LATAbits.LATA2 = 0;
-                //Play
-                mp3_send_cmd(0x0D, 0, 0);
-            }
-
-            //20sec count
-            if (status == 1) {
-                timeCount++;
-                if (timeCount < 200) {
-
-                    //Fadein
-                    vol++;
-                    if (vol > 10) {
-                        vol = 10;
-                    }
-                    //Volume Fadein
-                    mp3_send_cmd(6, 0, vol);
-
-                } else {
-                    timeCount = 200;
-                    LATAbits.LATA2 = 1;
-
-                    //Fadeout
-                    vol--;
-                    if (vol < 1) {
-                        vol = 1;
-                        //Pause
-                        mp3_send_cmd(0x0E, 0, 0);
-                    } else {
-                        //Volume Fadeout
-                        mp3_send_cmd(6, 0, vol);
-                    }
-
-                }
-            }
-
-        } else {
-
-            //Fadeout
-            vol--;
-            if (vol < 1) {
-                LATAbits.LATA2 = 1;
-                status = 0;
-                vol = 1;
-                //Pause
-                mp3_send_cmd(0x0E, 0, 0);
-            } else {
-                //Volume Fadeout
-                mp3_send_cmd(6, 0, vol);
-            }
-
-        }
+        while (!TRMT);
+        TXREG = abval(num1);
+//
+//                if (abval(num1 - num2) < 10) {
+//        
+//                    if (status == 0) {
+//                        status = 1;
+//                        timeCount = 0;
+//                        LATAbits.LATA2 = 0;
+//                        //Play
+//                        mp3_send_cmd(0x0D, 0, 0);
+//                    }
+//        
+//                    //20sec count
+//                    if (status == 1) {
+//                        timeCount++;
+//                        if (timeCount < 200) {
+//        
+//                            //Fadein
+//                            vol++;
+//                            if (vol > 10) {
+//                                vol = 10;
+//                            }
+//                            //Volume Fadein
+//                            mp3_send_cmd(6, 0, vol);
+//        
+//                        } else {
+//                            timeCount = 200;
+//                            LATAbits.LATA2 = 1;
+//        
+//                            //Fadeout
+//                            vol--;
+//                            if (vol < 1) {
+//                                vol = 1;
+//                                //Pause
+//                                mp3_send_cmd(0x0E, 0, 0);
+//                            } else {
+//                                //Volume Fadeout
+//                                mp3_send_cmd(6, 0, vol);
+//                            }
+//        
+//                        }
+//                    }
+//        
+//                } else {
+//        
+//                    //Fadeout
+//                    vol--;
+//                    if (vol < 1) {
+//                        LATAbits.LATA2 = 1;
+//                        status = 0;
+//                        vol = 1;
+//                        //Pause
+//                        mp3_send_cmd(0x0E, 0, 0);
+//                    } else {
+//                        //Volume Fadeout
+//                        mp3_send_cmd(6, 0, vol);
+//                    }
+//        
+//                }
 
 
     }
