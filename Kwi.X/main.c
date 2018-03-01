@@ -79,7 +79,7 @@ void mp3_send_cmd(uint8_t cmd, uint16_t high_arg, uint16_t low_arg) {
 
 unsigned int adconv(uint8_t ch) {
     unsigned int temp;
-    ADCON0 |= (ch << 2);
+    ADCON0bits.CHS = ch;
     GO_nDONE = 1; // PICにアナログ値読取り開始を指示
     while (GO_nDONE); // PICが読取り完了するまで待つ
     temp = ADRESH; // PICは読取った値をADRESHとADRESLのレジスターにセットする
@@ -94,43 +94,43 @@ int abval(int val) {
 
 unsigned int num1, num2;
 unsigned char status;
-unsigned char vol = 0;
+signed char vol = 0;
 unsigned int timeCount = 0;
+unsigned int fadeoutCount;
+//#define __DEBUG__
 
 void main(void) {
     OSCCON = 0b01110000;
 
     // A/Dの設定
     ADCON1 = 0b10010000; // 読取値は右寄せ、A/D変換クロックはFOSC/8、VDDをリファレンスに
-    ADCON0 = 0b00011001; // アナログ変換情報設定(AN6から読込む)
+    ADCON0 = 0b00000001; // アナログ変換情報設定(AN6から読込む)
     __delay_us(5); // アナログ変換情報が設定されるまでとりあえず待つ
 
     TRISA = 0b00000000;
-    TRISC = 0b00000000; //C2
+    TRISC = 0b00000000;
     ANSELA = 0b00000000;
-    ANSELC = 0b00000000; //C2
+    ANSELC = 0b00000000;
 
     //ANALOG
-    //C2 AN6 -- RPR220
-    //C3 AN7 -- POT
-    TRISCbits.TRISC2 = 1;
-    //    WPUCbits.WPUC2 = 1;
-    TRISCbits.TRISC3 = 1;
-    ANSELCbits.ANSC2 = 1;
-    ANSELCbits.ANSC3 = 1;
+    //C1 AN5 -- RPR220
+    TRISCbits.TRISC1 = 1;
+    ANSELCbits.ANSC1 = 1;
 
     //IR-LED
-    //C0 -- IR-LED
-    TRISCbits.TRISC0 = 0;
-
-    //TX C4,RX C1
-    TRISCbits.TRISC4 = 0;
-    TRISCbits.TRISC1 = 1;
-    RC4PPS = 0b10100; // 出力(TXを割当てる)
-    RXPPS = 0b10001; // 入力(RC1を割当てる:デフォルト)
-
-    //TEST LED
+    //A2 -- IR-LED
     TRISAbits.TRISA2 = 0;
+
+#ifdef __DEBUG__
+    TRISCbits.TRISC4 = 0;
+    RC4PPS = 0b10100; // 出力(TXを割当てる)
+#else
+    //TX C3,RX C0
+    TRISCbits.TRISC3 = 0;
+    TRISCbits.TRISC0 = 1;
+    RC3PPS = 0b10100; // 出力(TXを割当てる)
+    RXPPS = 0b10000; // 入力(RC0を割当てる:デフォルト)
+#endif
 
     SYNC = 0;
     BRGH = 0;
@@ -153,15 +153,14 @@ void main(void) {
     CREN = 1;
     ADDEN = 0;
 
-
     unsigned int i;
     for (i = 0; i < 10; i++) {
-        LATAbits.LATA2 = 1;
-        __delay_ms(50);
         LATAbits.LATA2 = 0;
         __delay_ms(50);
+        LATAbits.LATA2 = 1;
+        __delay_ms(50);
     }
-
+    __delay_ms(500);
     //PLAY '01/001.mp3'
     mp3_send_cmd(0x0F, 1, 1);
     //Repeat Play
@@ -177,77 +176,102 @@ void main(void) {
 
     while (1) {
 
-        LATCbits.LATC0 = 0;
-        num1 = adconv(6) / 4;
+        LATAbits.LATA2 = 0;
+        num1 = adconv(5);
         __delay_ms(50);
 
-        LATCbits.LATC0 = 1;
-        num2 = adconv(6) / 4;
+        LATAbits.LATA2 = 1;
+        num2 = adconv(5);
         __delay_ms(50);
 
+#ifdef __DEBUG__
         //RPR220 on
         while (!TRMT);
-        TXREG = abval(num1);
-//
-//                if (abval(num1 - num2) < 10) {
-//        
-//                    if (status == 0) {
-//                        status = 1;
-//                        timeCount = 0;
-//                        LATAbits.LATA2 = 0;
-//                        //Play
-//                        mp3_send_cmd(0x0D, 0, 0);
-//                    }
-//        
-//                    //20sec count
-//                    if (status == 1) {
-//                        timeCount++;
-//                        if (timeCount < 200) {
-//        
-//                            //Fadein
-//                            vol++;
-//                            if (vol > 10) {
-//                                vol = 10;
-//                            }
-//                            //Volume Fadein
-//                            mp3_send_cmd(6, 0, vol);
-//        
-//                        } else {
-//                            timeCount = 200;
-//                            LATAbits.LATA2 = 1;
-//        
-//                            //Fadeout
-//                            vol--;
-//                            if (vol < 1) {
-//                                vol = 1;
-//                                //Pause
-//                                mp3_send_cmd(0x0E, 0, 0);
-//                            } else {
-//                                //Volume Fadeout
-//                                mp3_send_cmd(6, 0, vol);
-//                            }
-//        
-//                        }
-//                    }
-//        
-//                } else {
-//        
-//                    //Fadeout
-//                    vol--;
-//                    if (vol < 1) {
-//                        LATAbits.LATA2 = 1;
-//                        status = 0;
-//                        vol = 1;
-//                        //Pause
-//                        mp3_send_cmd(0x0E, 0, 0);
-//                    } else {
-//                        //Volume Fadeout
-//                        mp3_send_cmd(6, 0, vol);
-//                    }
-//        
-//                }
+        TXREG = 255;
+        while (!TRMT);
+        TXREG = abval(num1 >> 7);
+        while (!TRMT);
+        TXREG = abval(num1 & 0b01111111);
 
+        while (!TRMT);
+        TXREG = abval(num2 >> 7);
+        while (!TRMT);
+        TXREG = abval(num2 & 0b01111111);
 
+        while (!TRMT);
+        TXREG = abval(num1 - num2) >> 7;
+        while (!TRMT);
+        TXREG = abval(num1 - num2) & 0b01111111;
+
+#else
+        
+        
+        if (abval(num1) < 1000) {
+
+            if (status == 0) {
+                status = 1;
+                timeCount = 0;
+                //Play
+                mp3_send_cmd(0x0D, 0, 0);
+            }
+
+            //20sec count
+            if (status == 1) {
+                fadeoutCount = 0;
+
+                timeCount++;
+                if (timeCount < 125) {
+
+                    //Fadein
+                    vol += 5;
+                    if (vol > 30) {
+                        vol = 30;
+                    }
+                    //Volume Fadein
+                    mp3_send_cmd(6, 0, vol);
+
+                } else {
+                    timeCount = 200;
+
+                    //Fadeout
+                    vol -= 4;
+
+                    if (vol < 1) {
+                        vol = 1;
+                        //Pause
+                        mp3_send_cmd(0x0E, 0, 0);
+                    } else {
+                        //Volume Fadeout
+                        mp3_send_cmd(6, 0, vol);
+                    }
+
+                }
+            }
+
+        } else {
+
+            //Fadeout
+            vol -= 2;
+
+            if (fadeoutCount > 10) {
+                //                timeCount = 0;
+            } else {
+                fadeoutCount++;
+            }
+
+            if (vol < 1) {
+                status = 0;
+                vol = 1;
+                //Pause
+                mp3_send_cmd(0x0E, 0, 0);
+            } else {
+                //Volume Fadeout
+                mp3_send_cmd(6, 0, vol);
+            }
+
+        }
+
+#endif
     }
 
 
