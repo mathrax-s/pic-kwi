@@ -92,11 +92,15 @@ int abval(int val) {
     return (val < 0 ? (-val) : val);
 }
 
-unsigned int num1, num2;
+unsigned long num1, num2;
 unsigned char status;
 signed char vol = 0;
 unsigned int timeCount = 0;
 unsigned int fadeoutCount;
+float ave;
+float dif;
+float base;
+unsigned char toggle;
 //#define __DEBUG__
 
 void main(void) {
@@ -174,39 +178,83 @@ void main(void) {
     status = 0;
     vol = 1;
 
+
+
+    LATAbits.LATA2 = 0;
+    for (i = 0; i < 64; i++) {
+        __delay_ms(1);
+        num1 = (adconv(5) * adconv(5));
+        ave = ave * (63.0 / 64.0) + (float) num1 * (1.0 / 64.0);
+    }
+
     while (1) {
-
         LATAbits.LATA2 = 0;
-        num1 = adconv(5);
-        __delay_ms(50);
-
+        for (i = 0; i < 10; i++) {
+            __delay_ms(5);
+            num1 = (adconv(5) * adconv(5));
+            ave = ave * (63.0 / 64.0) + (float) num1 * (1.0 / 64.0);
+        }
+        if (abval(num1 - ave) > 150) {
+            if (num1 > ave) {
+                toggle = 1;
+            } else if (num1 < ave) {
+                toggle = 0;
+            }
+        }
         LATAbits.LATA2 = 1;
-        num2 = adconv(5);
-        __delay_ms(50);
+        for (i = 0; i < 10; i++) {
+            __delay_ms(5);
+            num2 = adconv(5);
+        }
+
+        //        ave = ave * (3.0 / 4.0) + num1 * (1.0 / 4.0);
+        //        dif = dif * (3.0 / 4.0) + (float) (abval((int) (num1 - base)))*(1.0 / 4.0);
+        //        
+        //        base = base * (15.0 / 16.0) + num2 * (1.0 / 16.0);
+
 
 #ifdef __DEBUG__
         //RPR220 on
         while (!TRMT);
         TXREG = 255;
         while (!TRMT);
-        TXREG = abval(num1 >> 7);
+        TXREG = abval((int) (num1 >> 21) & 0b01111111);
         while (!TRMT);
-        TXREG = abval(num1 & 0b01111111);
+        TXREG = abval((int) (num1 >> 14) & 0b01111111);
+        while (!TRMT);
+        TXREG = abval((int) (num1 >> 7) & 0b01111111);
+        while (!TRMT);
+        TXREG = abval((int) num1 & 0b01111111);
+
 
         while (!TRMT);
-        TXREG = abval(num2 >> 7);
+        TXREG = abval(((int) (ave) >> 21) & 0b01111111);
         while (!TRMT);
-        TXREG = abval(num2 & 0b01111111);
+        TXREG = abval(((int) (ave) >> 14) & 0b01111111);
+        while (!TRMT);
+        TXREG = abval(((int) (ave) >> 7) & 0b01111111);
+        while (!TRMT);
+        TXREG = abval(((int) (ave)) & 0b01111111);
+
 
         while (!TRMT);
-        TXREG = abval(num1 - num2) >> 7;
+        TXREG = abval((int) toggle >> 7);
         while (!TRMT);
-        TXREG = abval(num1 - num2) & 0b01111111;
+        TXREG = abval((int) toggle & 0b01111111);
+
+
+        while (!TRMT);
+        TXREG = abval(abval(num1 - ave) >> 7);
+        while (!TRMT);
+        TXREG = abval(abval(num1 - ave) & 0b01111111);
+
+
+
 
 #else
-        
-        
-        if (abval(num1) < 1000) {
+
+
+        if (toggle == 1) {
 
             if (status == 0) {
                 status = 1;
@@ -254,7 +302,7 @@ void main(void) {
             vol -= 2;
 
             if (fadeoutCount > 10) {
-                //                timeCount = 0;
+                                timeCount = 0;
             } else {
                 fadeoutCount++;
             }
