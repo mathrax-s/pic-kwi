@@ -101,7 +101,7 @@ float ave;
 float dif;
 float base;
 unsigned char toggle;
-#define __DEBUG__
+//#define __DEBUG__
 
 void main(void) {
     OSCCON = 0b01110000;
@@ -195,7 +195,7 @@ void main(void) {
             ave = ave * (63.0 / 64.0) + (float) num1 * (1.0 / 64.0);
         }
         if (ave < 20000) {
-            if (abval(num1 - ave) > 4000) {
+            if (abval(num1 - ave) > 8000) {
                 if (num1 > ave) {
                     toggle = 1;
                 } else if (num1 < ave) {
@@ -278,7 +278,7 @@ void main(void) {
                 fadeoutCount = 0;
 
                 timeCount++;
-                if (timeCount < 125) {
+                if (timeCount < 122) {
 
                     //Fadein
                     vol += 5;
