@@ -101,7 +101,7 @@ float ave;
 float dif;
 float base;
 unsigned char toggle;
-//#define __DEBUG__
+#define __DEBUG__
 
 void main(void) {
     OSCCON = 0b01110000;
@@ -194,17 +194,19 @@ void main(void) {
             num1 = (adconv(5) * adconv(5));
             ave = ave * (63.0 / 64.0) + (float) num1 * (1.0 / 64.0);
         }
-        if (abval(num1 - ave) > 150) {
-            if (num1 > ave) {
-                toggle = 1;
-            } else if (num1 < ave) {
-                toggle = 0;
+        if (ave < 20000) {
+            if (abval(num1 - ave) > 4000) {
+                if (num1 > ave) {
+                    toggle = 1;
+                } else if (num1 < ave) {
+                    toggle = 0;
+                }
             }
         }
         LATAbits.LATA2 = 1;
         for (i = 0; i < 10; i++) {
             __delay_ms(5);
-            num2 = adconv(5);
+            num2 = (adconv(5) * adconv(5));
         }
 
         //        ave = ave * (3.0 / 4.0) + num1 * (1.0 / 4.0);
@@ -226,6 +228,14 @@ void main(void) {
         while (!TRMT);
         TXREG = abval((int) num1 & 0b01111111);
 
+        while (!TRMT);
+        TXREG = abval((int) (num2 >> 21) & 0b01111111);
+        while (!TRMT);
+        TXREG = abval((int) (num2 >> 14) & 0b01111111);
+        while (!TRMT);
+        TXREG = abval((int) (num2 >> 7) & 0b01111111);
+        while (!TRMT);
+        TXREG = abval((int) num2 & 0b01111111);
 
         while (!TRMT);
         TXREG = abval(((int) (ave) >> 21) & 0b01111111);
@@ -302,7 +312,7 @@ void main(void) {
             vol -= 2;
 
             if (fadeoutCount > 10) {
-                                timeCount = 0;
+                timeCount = 0;
             } else {
                 fadeoutCount++;
             }
