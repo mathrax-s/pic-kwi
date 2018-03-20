@@ -194,7 +194,7 @@ void main(void) {
             num1 = (adconv(5) * adconv(5));
             ave = ave * (63.0 / 64.0) + (float) num1 * (1.0 / 64.0);
         }
-        if (ave < 20000) {
+        if ( ave < 20000) {
             if (abval(num1 - ave) > 8000) {
                 if (num1 > ave) {
                     toggle = 1;
