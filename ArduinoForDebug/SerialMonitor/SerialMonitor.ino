@@ -2,7 +2,7 @@
 SoftwareSerial mySerial(13, 12); // RX, TX
 
 int pos;
-int buf[20];
+int buf[100];
 
 unsigned long d;
 
@@ -23,32 +23,37 @@ void loop() {
       buf[pos] = rcvdata;
       pos++;
 
-      if (pos >= 16) {
+      if (pos >= 24) {
         pos = 0;
         int p;
+
+        p = 0;
+        d = ((buf[p + 0] & 0x7F) << 21) + ((buf[p + 1] & 0x7F) << 14) + ((buf[p + 2] & 0x7F) << 7) + (buf[p + 3] & 0x7F);
+        Serial.print(d); Serial.print(",");
+
+        p = 4;
+        d = ((buf[p + 0] & 0x7F) << 21) + ((buf[p + 1] & 0x7F) << 14) + ((buf[p + 2] & 0x7F) << 7) + (buf[p + 3] & 0x7F);
+        d=0;Serial.print(d); Serial.print(",");
+
+        p = 8;
+        d = ((buf[p + 0] & 0x7F) << 21) + ((buf[p + 1] & 0x7F) << 14) + ((buf[p + 2] & 0x7F) << 7) + (buf[p + 3] & 0x7F);
+        Serial.print(d); Serial.print(",");
+
+        p = 12;
+        d = ((buf[p + 0] & 0x7F) << 21) + ((buf[p + 1] & 0x7F) << 14) + ((buf[p + 2] & 0x7F) << 7) + (buf[p + 3] & 0x7F);
+        Serial.print(d); Serial.print(",");
+
+        p = 16;
+        Serial.print(((buf[p] & 0x7F) << 7) + (buf[p + 1] & 0x7F) * 1600);
+        Serial.print(",");
         
-        p=0;
-        d = ((buf[p+0] & 0x7F) << 21) + ((buf[p+1] & 0x7F) << 14) + ((buf[p+2] & 0x7F) << 7) + (buf[p+3] & 0x7F);
-        Serial.print("nm1:\t");
+        p = 18;
+        Serial.print(((buf[p] & 0x7F) << 7) + (buf[p + 1] & 0x7F)*80);
+        Serial.print(",");
+        
+        p = 20;
+        d = ((buf[p + 0] & 0x7F) << 21) + ((buf[p + 1] & 0x7F) << 14) + ((buf[p + 2] & 0x7F) << 7) + (buf[p + 3] & 0x7F);
         Serial.print(d);
-        
-//        p=4;
-//        d = ((buf[p+0] & 0x7F) << 21) + ((buf[p+1] & 0x7F) << 14) + ((buf[p+2] & 0x7F) << 7) + (buf[p+3] & 0x7F);
-//        Serial.print("\t\tnm2:\t");
-//        Serial.print(d);
-        
-        p=8;
-        d = ((buf[p+0] & 0x7F) << 21) + ((buf[p+1] & 0x7F) << 14) + ((buf[p+2] & 0x7F) << 7) + (buf[p+3] & 0x7F);
-        Serial.print("\t\tave:\t");
-        Serial.print(d);
-        
-        p=12;
-        Serial.print("\t\ttgl:\t");
-        Serial.print(((buf[p] & 0x7F) << 7) + (buf[p+1] & 0x7F));
-       
-        p=14;
-        Serial.print("\t\tdif:\t");
-        Serial.print(((buf[p] & 0x7F) << 7) + (buf[p+1] & 0x7F));
         Serial.println("\t");
       }
     }

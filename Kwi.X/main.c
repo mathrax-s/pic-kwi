@@ -6,8 +6,8 @@
  */
 
 #pragma config FOSC = INTOSC    // Oscillator Selection Bits (INTOSC oscillator: I/O function on CLKIN pin)
-#pragma config WDTE = OFF       // Watchdog Timer Enable (WDT disabled)
-#pragma config PWRTE = OFF      // Power-up Timer Enable (PWRT disabled)
+#pragma config WDTE = ON       // Watchdog Timer Enable (WDT disabled)
+#pragma config PWRTE = ON      // Power-up Timer Enable (PWRT disabled)
 #pragma config MCLRE = OFF       // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
 #pragma config CP = OFF         // Flash Program Memory Code Protection (Program memory code protection is disabled)
 #pragma config BOREN = ON       // Brown-out Reset Enable (Brown-out Reset enabled)
@@ -22,7 +22,7 @@
 #pragma config PLLEN = ON       // Phase Lock Loop enable (4x PLL is always enabled)
 #pragma config STVREN = OFF     // Stack Overflow/Underflow Reset Enable (Stack Overflow or Underflow will not cause a Reset)
 #pragma config BORV = LO        // Brown-out Reset Voltage Selection (Brown-out Reset Voltage (Vbor), low trip point selected.)
-#pragma config LPBOR = OFF      // Low-Power Brown Out Reset (Low-Power BOR is disabled)
+#pragma config LPBOR = ON      // Low-Power Brown Out Reset (Low-Power BOR is disabled)
 #pragma config LVP = ON         // Low-Voltage Programming Enable (Low-voltage programming enabled)
 
 
@@ -31,144 +31,57 @@
 #include <stddef.h>
 #include "main.h"
 
-uint8_t send_buf[10] = {
-    0x7E, 0xFF, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xEF
-};
-uint8_t recv_buf[10];
-
-static void fill_uint16_bigend(uint8_t *thebuf, uint16_t data) {
-    *thebuf = (uint8_t) (data >> 8);
-    *(thebuf + 1) = (uint8_t) data;
-}
-
-//calc checksum (1~6 byte)
-
-uint16_t mp3_get_checksum(uint8_t *thebuf) {
-    uint16_t sum = 0;
-    for (int i = 1; i < 7; i++) {
-        sum += thebuf[i];
-    }
-    return -sum;
-}
-//fill checksum to send_buf (7~8 byte)
-
-void mp3_fill_checksum() {
-    uint16_t checksum = mp3_get_checksum(send_buf);
-    fill_uint16_bigend(send_buf + 7, checksum);
-}
-
-void mp3_send_cmd(uint8_t cmd, uint16_t high_arg, uint16_t low_arg) {
-    unsigned int i;
-
-    send_buf[3] = cmd;
-
-    send_buf[5] = high_arg;
-    send_buf[6] = low_arg;
-
-    mp3_fill_checksum();
-
-    for (i = 0; i < 10; i++) {
-        while (!TRMT);
-        TXREG = send_buf[i];
-    }
-
-    __delay_ms(50);
-}
-
-// アナログ値の入力処理
-
-unsigned int adconv(uint8_t ch) {
-    unsigned int temp;
-    ADCON0bits.CHS = ch;
-    GO_nDONE = 1; // PICにアナログ値読取り開始を指示
-    while (GO_nDONE); // PICが読取り完了するまで待つ
-    temp = ADRESH; // PICは読取った値をADRESHとADRESLのレジスターにセットする
-    temp = (temp << 8) | ADRESL; // 10ビットの分解能力
-    __delay_us(100);
-    return temp;
-}
-
-int abval(int val) {
-    return (val < 0 ? (-val) : val);
-}
-
 unsigned long num1, num2;
+unsigned long tmp1, tmp2;
+unsigned long num1Buf[BUFFER_LENGTH];
+unsigned long num2Buf[BUFFER_LENGTH];
+unsigned int index = 0;
+
+float d;
 unsigned char status;
 signed char vol = 0;
 unsigned int timeCount = 0;
 unsigned int fadeoutCount;
-float ave;
+float ave1, ave2;
 float dif;
-float base;
+float baseLine;
+float lastDif;
+float aveDif;
 unsigned char toggle;
-//#define __DEBUG__
+
+float aveCount;
+#define __DEBUG__
+
+int toggleCount1;
+int toggleCount2;
+int toggleTrue;
 
 void main(void) {
-    OSCCON = 0b01110000;
+    setUp();
 
-    // A/Dの設定
-    ADCON1 = 0b10010000; // 読取値は右寄せ、A/D変換クロックはFOSC/8、VDDをリファレンスに
-    ADCON0 = 0b00000001; // アナログ変換情報設定(AN6から読込む)
-    __delay_us(5); // アナログ変換情報が設定されるまでとりあえず待つ
-
-    TRISA = 0b00000000;
-    TRISC = 0b00000000;
-    ANSELA = 0b00000000;
-    ANSELC = 0b00000000;
-
-    //ANALOG
-    //C1 AN5 -- RPR220
-    TRISCbits.TRISC1 = 1;
-    ANSELCbits.ANSC1 = 1;
-
-    //IR-LED
-    //A2 -- IR-LED
-    TRISAbits.TRISA2 = 0;
-
-#ifdef __DEBUG__
-    TRISCbits.TRISC4 = 0;
-    RC4PPS = 0b10100; // 出力(TXを割当てる)
-#else
-    //TX C3,RX C0
-    TRISCbits.TRISC3 = 0;
-    TRISCbits.TRISC0 = 1;
-    RC3PPS = 0b10100; // 出力(TXを割当てる)
-    RXPPS = 0b10000; // 入力(RC0を割当てる:デフォルト)
-#endif
-
-    SYNC = 0;
-    BRGH = 0;
-    BRG16 = 0;
-    SPBRG = 51; //51;
-
-    //TXSTA
-    //CSRC , TX9 , TXEN , SYNC , SENDB , BRGH , TRMT , TX9D
-    CSRC = 1;
-    TX9 = 0;
-    TXEN = 1;
-    SYNC = 0;
-    //SENDB = 
-    BRGH = 0;
-    //RCSTA
-    //SPEN , RX9 , SREN , CREN , ADDEN , FERR , OERR , RX9D
-    SPEN = 1;
-    RX9 = 0;
-    //SREN = 
-    CREN = 1;
-    ADDEN = 0;
-
-    unsigned int i;
-    for (i = 0; i < 10; i++) {
-        LATAbits.LATA2 = 0;
+    for (int i = 0; i < 10; i++) {
+        ledOn();
         __delay_ms(50);
-        LATAbits.LATA2 = 1;
+        ledOff();
         __delay_ms(50);
+        CLRWDT();
     }
     __delay_ms(500);
+    CLRWDT();
+
+    setSerialDFMp3();
+    //MP3RESET
+    mp3_send_cmd(0x0C, 0, 0);
+    __delay_ms(500);
+
     //PLAY '01/001.mp3'
     mp3_send_cmd(0x0F, 1, 1);
     //Repeat Play
     mp3_send_cmd(0x11, 0, 1);
+    //Volume 10
+    mp3_send_cmd(6, 0, 10);
+
+    __delay_ms(500);
 
     //Volume 0
     mp3_send_cmd(6, 0, 1);
@@ -179,96 +92,69 @@ void main(void) {
     vol = 1;
 
 
-
-    LATAbits.LATA2 = 0;
-    for (i = 0; i < 64; i++) {
-        __delay_ms(1);
-        num1 = (adconv(5) * adconv(5));
-        ave = ave * (63.0 / 64.0) + (float) num1 * (1.0 / 64.0);
-    }
-
     while (1) {
-        LATAbits.LATA2 = 0;
-        for (i = 0; i < 10; i++) {
-            __delay_ms(5);
-            num1 = (adconv(5) * adconv(5));
-            ave = ave * (63.0 / 64.0) + (float) num1 * (1.0 / 64.0);
-        }
-        if ( ave < 20000) {
-            if (abval(num1 - ave) > 8000) {
-                if (num1 > ave) {
-                    toggle = 1;
-                } else if (num1 < ave) {
-                    toggle = 0;
-                }
+
+        aveCount = 4.0;
+
+        ledOn();
+        __delay_ms(5);
+        num1Buf[index] = (adconv(5) * adconv(5)) / 10; // * adconv(5) * adconv(5)) / 10;
+        index = (index + 1) % BUFFER_LENGTH;
+        num1 = (median(num1Buf, BUFFER_LENGTH));
+        if (num1 > 3000)num1 = 3000;
+        ave1 = ave1 * ((aveCount - 1.0) / aveCount) + (float) (num1) * (1.0 / aveCount);
+
+        ledOff();
+        __delay_ms(5);
+        num2Buf[index] = (adconv(5));
+        num2 = (median(num2Buf, BUFFER_LENGTH));
+        ave2 = ave2 * ((aveCount - 1.0) / aveCount) + (float) (num2) * (1.0 / aveCount);
+
+
+        aveCount = 40.0;
+        baseLine = baseLine * ((aveCount - 1.0) / aveCount) + (ave1) * (1.0 / aveCount);
+        if (baseLine > 500)baseLine = 500;
+        if (baseLine > ave1) baseLine *= 0.9;
+
+
+        if ((baseLine >= 500) && (ave1 > baseLine)) {
+            if ((ave1 - baseLine) > 300) {
+                toggle = 1;
             }
-        }
-        LATAbits.LATA2 = 1;
-        for (i = 0; i < 10; i++) {
-            __delay_ms(5);
-            num2 = (adconv(5) * adconv(5));
+        } else if (baseLine < 500) {
+            toggle = 0;
         }
 
-        //        ave = ave * (3.0 / 4.0) + num1 * (1.0 / 4.0);
-        //        dif = dif * (3.0 / 4.0) + (float) (abval((int) (num1 - base)))*(1.0 / 4.0);
-        //        
-        //        base = base * (15.0 / 16.0) + num2 * (1.0 / 16.0);
+        serialDebug();
 
+        setSerialDFMp3();
 
-#ifdef __DEBUG__
-        //RPR220 on
-        while (!TRMT);
-        TXREG = 255;
-        while (!TRMT);
-        TXREG = abval((int) (num1 >> 21) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval((int) (num1 >> 14) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval((int) (num1 >> 7) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval((int) num1 & 0b01111111);
-
-        while (!TRMT);
-        TXREG = abval((int) (num2 >> 21) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval((int) (num2 >> 14) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval((int) (num2 >> 7) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval((int) num2 & 0b01111111);
-
-        while (!TRMT);
-        TXREG = abval(((int) (ave) >> 21) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval(((int) (ave) >> 14) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval(((int) (ave) >> 7) & 0b01111111);
-        while (!TRMT);
-        TXREG = abval(((int) (ave)) & 0b01111111);
-
-
-        while (!TRMT);
-        TXREG = abval((int) toggle >> 7);
-        while (!TRMT);
-        TXREG = abval((int) toggle & 0b01111111);
-
-
-        while (!TRMT);
-        TXREG = abval(abval(num1 - ave) >> 7);
-        while (!TRMT);
-        TXREG = abval(abval(num1 - ave) & 0b01111111);
-
-
-
-
-#else
-
-
+        //Toggle Debounce
         if (toggle == 1) {
+            toggleCount1++;
+            if (toggleCount1 > 0) {
+                toggleCount1 = 0;
+                toggleTrue = 1;
+            }
+            toggleCount2 = 0;
+        } else {
+            toggleCount2++;
+            if (toggleCount2 > 5) {
+                toggleCount2 = 0;
+                toggleTrue = 0;
+                status = 0;
+            }
+            toggleCount1 = 0;
+        }
 
+        if (toggleTrue == 1) {
             if (status == 0) {
                 status = 1;
                 timeCount = 0;
+                //PLAY '01/001.mp3'
+                mp3_send_cmd(0x0F, 1, 1);
+                //Repeat Play
+                mp3_send_cmd(0x11, 0, 1);
                 //Play
                 mp3_send_cmd(0x0D, 0, 0);
             }
@@ -277,22 +163,22 @@ void main(void) {
             if (status == 1) {
                 fadeoutCount = 0;
 
-                timeCount++;
-                if (timeCount < 122) {
+                if (timeCount < 2400) {
+                    
+                    timeCount++;
 
                     //Fadein
-                    vol += 5;
-                    if (vol > 30) {
-                        vol = 30;
+                    vol += 4;
+                    if (vol > MAX_VOL) {
+                        vol = MAX_VOL;
                     }
                     //Volume Fadein
                     mp3_send_cmd(6, 0, vol);
 
                 } else {
-                    timeCount = 200;
 
                     //Fadeout
-                    vol -= 4;
+                    vol -= 2;
 
                     if (vol < 1) {
                         vol = 1;
@@ -329,7 +215,6 @@ void main(void) {
 
         }
 
-#endif
     }
 
 
