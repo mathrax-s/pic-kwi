@@ -54,6 +54,5 @@ void mp3_send_cmd(uint8_t cmd, uint16_t high_arg, uint16_t low_arg) {
         TXREG = send_buf[i];
     }
 
-    __delay_ms(50); //50
-//    CLRWDT();
+    __delay_ms(50);
 }

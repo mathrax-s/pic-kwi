@@ -40,7 +40,7 @@ unsigned int index = 0;
 float d;
 unsigned char status;
 signed char vol = 0;
-unsigned int timeCount = 0;
+unsigned long timeCount = 0;
 unsigned int fadeoutCount;
 float ave1, ave2;
 float dif;
@@ -55,7 +55,7 @@ int toggleCount1;
 int toggleCount2;
 int toggleTrue;
 unsigned int mp3Busy;
-unsigned int mp3ResetCount;
+unsigned long mp3ResetCount;
 unsigned int rcvData;
 unsigned int rcvBuf[20];
 unsigned int rcvPos;
@@ -65,27 +65,18 @@ unsigned int timeOut;
 
 void main(void) {
     setUp();
-    
-//    for(int i=0; i<100; i++){
-//        timeCount++;
-//        serialDebug();
-//    }
-//    timeCount=0;
+
     LATAbits.LATA4 = 0;
     __delay_ms(1000);
-//        CLRWDT();
     LATAbits.LATA4 = 1;
     __delay_ms(500);
-//        CLRWDT();
-
+    
     setSerialDFMp3();
     //MP3RESET
     mp3_send_cmd(0x0C, 0, 0);
     __delay_ms(1000);
-    //    CLRWDT();
     __delay_ms(1000);
-    //    CLRWDT();
-
+    
     //PLAY '01/001.mp3'
     mp3_send_cmd(0x0F, 1, 1);
     //Play
@@ -99,22 +90,19 @@ void main(void) {
         mp3Busy = PORTCbits.RC5;
         serialDebug();
     } while (mp3Busy != 0);
-    //    CLRWDT();
     wdtOnOff = 1;
 
-    for (int i = 0; i < 20; i++) {
+    for (unsigned int i = 0; i < 20; i++) {
         //Volume 0
         mp3_send_cmd(6, 0, i);
         serialDebug();
         __delay_ms(50);
-        //        CLRWDT();
     }
-    for (int i = 0; i < 20; i++) {
+    for (unsigned int i = 0; i < 20; i++) {
         //Volume 0
         mp3_send_cmd(6, 0, 20 - i);
         serialDebug();
         __delay_ms(50);
-        //        CLRWDT();
     }
 
     //Pause
@@ -127,8 +115,7 @@ void main(void) {
     ave2 = 0;
     baseLine = 0;
 
-    //    CLRWDT();
-
+    
     while (1) {
 
         aveCount = 2.0;
@@ -148,7 +135,6 @@ void main(void) {
 
 
         aveCount = 2.0;
-
         //Light > IR
         if ((ave1 > ave2)) {
             baseLine = baseLine * ((aveCount - 1.0) / aveCount) + (ave1 - ave2) * (1.0 / aveCount); // + (ave2) * (5.0 / aveCount);
@@ -169,7 +155,7 @@ void main(void) {
         mp3Busy = PORTCbits.RC5;
         serialDebug();
 
-        //Toggle Debounce
+        //Toggle DeBounce
         if (toggle == 1) {
             toggleCount1++;
             if (toggleCount1 > 0) {
@@ -235,11 +221,9 @@ void main(void) {
                         vol = MAX_VOL;
                     }
                     //Volume Fadein
-                    mp3_send_cmd(6, 0, vol);
+                    mp3_send_cmd(6, 0, (unsigned int)vol);
 
                 } else {
-                    //                    wdtOnOff = 0;
-
                     //Fadeout
                     vol -= 2;
 
@@ -249,14 +233,12 @@ void main(void) {
                         mp3_send_cmd(0x0E, 0, 0);
                     } else {
                         //Volume Fadeout
-                        mp3_send_cmd(6, 0, vol);
+                        mp3_send_cmd(6, 0, (unsigned int)vol);
 
                         if (mp3ResetCount < 50) {
                             mp3ResetCount++;
                         }
                     }
-
-
                 }
             }
 
@@ -279,14 +261,12 @@ void main(void) {
                 mp3_send_cmd(0x0E, 0, 0);
             } else {
                 //Volume Fadeout
-                mp3_send_cmd(6, 0, vol);
+                mp3_send_cmd(6, 0, (unsigned int)vol);
             }
 
 
         }
 
     }
-
-
     return;
 }

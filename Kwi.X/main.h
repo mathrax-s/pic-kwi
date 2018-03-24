@@ -27,7 +27,7 @@ extern unsigned int index;
 extern float d;
 extern unsigned char status;
 extern signed char vol;
-extern unsigned int timeCount;
+extern unsigned long timeCount;
 extern unsigned int fadeoutCount;
 extern float ave1, ave2;
 extern float dif;
@@ -40,7 +40,7 @@ extern int toggleCount1;
 extern int toggleCount2;
 extern int toggleTrue;
 extern unsigned int mp3Busy;
-extern unsigned int mp3ResetCount;
+extern unsigned long mp3ResetCount;
 
 
 extern unsigned int adconv(uint8_t ch);
@@ -54,20 +54,20 @@ extern void sensing();
 extern void serialDebug();
 
 extern unsigned long sorted[BUFFER_LENGTH];
-extern unsigned long median(unsigned long samples[], int m);
+extern unsigned long median(unsigned long samples[], unsigned int m);
 
 
 extern unsigned int count;
 extern void interrupt InterTimer(void);
 extern unsigned int wdtOnOff;
 
-extern unsigned char UART_Read();
-extern int UART_Available();
-extern void InitUART(int rx, int tx, char brg);
+//extern unsigned char UART_Read();
+//extern int UART_Available();
+//extern void InitUART(int rx, int tx, char brg);
 
-#define UART_BUFFER_SIZE   64
-extern unsigned char UART_Buffer[UART_BUFFER_SIZE]; // 受信したデータを格納するバッファ
-extern unsigned char UART_Buffer_inptr;
-extern unsigned char UART_Buffer_outptr;
+//#define UART_BUFFER_SIZE   64
+//extern unsigned char UART_Buffer[UART_BUFFER_SIZE]; // 受信したデータを格納するバッファ
+//extern unsigned char UART_Buffer_inptr;
+//extern unsigned char UART_Buffer_outptr;
 
 #endif

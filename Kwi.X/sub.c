@@ -50,7 +50,7 @@ void setUp() {
 
     //MP3 Power
     TRISAbits.TRISA4 = 0;
-//    WPUA = 0b00010000;
+    //    WPUA = 0b00010000;
 
     //ANALOG
     //C1 AN5 -- RPR220
@@ -145,13 +145,13 @@ void ledOff() {
 //    ave2 = ave2 * (63.0 / 64.0) + (float) (num2) * (1.0 / 64.0);
 //}
 
-void serialDFMp3Debug() {
-    setSerialDebug();
-    while (!TRMT);
-    TXREG = 255;
-
-
-}
+//void serialDFMp3Debug() {
+//    setSerialDebug();
+//    while (!TRMT);
+//    TXREG = 255;
+//
+//
+//}
 
 void serialDebug() {
 
@@ -161,61 +161,61 @@ void serialDebug() {
     while (!TRMT);
     TXREG = 255;
     while (!TRMT);
-    TXREG = (((int) (timeCount >> 21)) & 0x7F);
+    TXREG = (((timeCount >> 21)) & 0x7F);
     while (!TRMT);
-    TXREG = (((int) (timeCount >> 14)) & 0x7F);
+    TXREG = (((timeCount >> 14)) & 0x7F);
     while (!TRMT);
-    TXREG = (((int) (timeCount >> 7)) & 0x7F);
+    TXREG = (((timeCount >> 7)) & 0x7F);
     while (!TRMT);
-    TXREG = (((int) (timeCount >> 0)) & 0x7F);
+    TXREG = (((timeCount >> 0)) & 0x7F);
 
     while (!TRMT);
-    TXREG = ((int) (mp3ResetCount >> 21) & 0x7F);
+    TXREG = ((mp3ResetCount >> 21) & 0x7F);
     while (!TRMT);
-    TXREG = ((int) (mp3ResetCount >> 14) & 0x7F);
+    TXREG = ((mp3ResetCount >> 14) & 0x7F);
     while (!TRMT);
-    TXREG = ((int) (mp3ResetCount >> 7) & 0x7F);
+    TXREG = ((mp3ResetCount >> 7) & 0x7F);
     while (!TRMT);
-    TXREG = ((int) mp3ResetCount & 0x7F);
+    TXREG = (mp3ResetCount & 0x7F);
 
     while (!TRMT);
-    TXREG = (int) (((int) (ave1) >> 21) & 0x7F);
+    TXREG = (unsigned int) (((unsigned int) (ave1) >> 21) & 0x7F);
     while (!TRMT);
-    TXREG = (int) (((int) (ave1) >> 14) & 0x7F);
+    TXREG = (unsigned int) (((unsigned int) (ave1) >> 14) & 0x7F);
     while (!TRMT);
-    TXREG = (int) (((int) (ave1) >> 7) & 0x7F);
+    TXREG = (unsigned int) (((unsigned int) (ave1) >> 7) & 0x7F);
     while (!TRMT);
-    TXREG = (int) (((int) (ave1)) & 0x7F);
-
-
-    while (!TRMT);
-    TXREG = (int) (((int) (ave2) >> 21) & 0b01111111);
-    while (!TRMT);
-    TXREG = (int) (((int) (ave2) >> 14) & 0b01111111);
-    while (!TRMT);
-    TXREG = (int) (((int) (ave2) >> 7) & 0b01111111);
-    while (!TRMT);
-    TXREG = (int) (((int) (ave2)) & 0b01111111);
+    TXREG = (unsigned int) (((unsigned int) (ave1)) & 0x7F);
 
 
     while (!TRMT);
-    TXREG = (int) (int) toggleTrue >> 7;
+    TXREG = (unsigned int) (((unsigned int) (ave2) >> 21) & 0b01111111);
     while (!TRMT);
-    TXREG = (int) (int) toggleTrue & 0b01111111;
+    TXREG = (unsigned int) (((unsigned int) (ave2) >> 14) & 0b01111111);
+    while (!TRMT);
+    TXREG = (unsigned int) (((unsigned int) (ave2) >> 7) & 0b01111111);
+    while (!TRMT);
+    TXREG = (unsigned int) (((unsigned int) (ave2)) & 0b01111111);
+
 
     while (!TRMT);
-    TXREG = (int) (int) mp3Busy >> 7;
+    TXREG = (unsigned int) toggleTrue >> 7;
     while (!TRMT);
-    TXREG = (int) (int) mp3Busy & 0b01111111;
+    TXREG = (unsigned int) toggleTrue & 0b01111111;
 
     while (!TRMT);
-    TXREG = (int) (((int) (baseLine) >> 21) & 0b01111111);
+    TXREG = (unsigned int) (unsigned int) mp3Busy >> 7;
     while (!TRMT);
-    TXREG = (int) (((int) (baseLine) >> 14) & 0b01111111);
+    TXREG = (unsigned int) (unsigned int) mp3Busy & 0b01111111;
+
     while (!TRMT);
-    TXREG = (int) (((int) (baseLine) >> 7) & 0b01111111);
+    TXREG = (unsigned int) (((unsigned int) (baseLine) >> 21) & 0b01111111);
     while (!TRMT);
-    TXREG = (int) (((int) (baseLine) & 0b01111111));
+    TXREG = (unsigned int) (((unsigned int) (baseLine) >> 14) & 0b01111111);
+    while (!TRMT);
+    TXREG = (unsigned int) (((unsigned int) (baseLine) >> 7) & 0b01111111);
+    while (!TRMT);
+    TXREG = (unsigned int) (((unsigned int) (baseLine) & 0b01111111));
 
     //        while (!TRMT);
     //        TXREG = (int) (abval(((int) (abval(dif - aveDif)) >> 21) & 0b01111111));

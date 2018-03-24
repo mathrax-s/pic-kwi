@@ -19,7 +19,7 @@ void bubbleSort(unsigned long A[], unsigned int len) {
     unsigned long newn;
     unsigned long n = len;
     unsigned long temp = 0;
-    int p;
+    unsigned int p;
     do {
         newn = 1;
         for (p = 1; p < len; p++) {
@@ -36,10 +36,10 @@ void bubbleSort(unsigned long A[], unsigned int len) {
 
 
 
-unsigned long median(unsigned long samples[], int m) //calculate the median
+unsigned long median(unsigned long samples[], unsigned int m) //calculate the median
 {
     
-    for (int i = 0; i < m; i++) {
+    for (unsigned int i = 0; i < m; i++) {
         sorted[i] = samples[i];
     }
     bubbleSort(sorted, m); // Sort the values
