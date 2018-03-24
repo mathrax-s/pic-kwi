@@ -21,7 +21,7 @@
 #pragma config ZCDDIS = OFF     // Zero-cross detect disable (Zero-cross detect circuit is enabled at POR)
 #pragma config PLLEN = ON       // Phase Lock Loop enable (4x PLL is always enabled)
 #pragma config STVREN = OFF     // Stack Overflow/Underflow Reset Enable (Stack Overflow or Underflow will not cause a Reset)
-#pragma config BORV = LO        // Brown-out Reset Voltage Selection (Brown-out Reset Voltage (Vbor), low trip point selected.)
+#pragma config BORV = 1        // Brown-out Reset Voltage Selection (Brown-out Reset Voltage (Vbor), low trip point selected.)
 #pragma config LPBOR = ON      // Low-Power Brown Out Reset (Low-Power BOR is disabled)
 #pragma config LVP = ON         // Low-Voltage Programming Enable (Low-voltage programming enabled)
 
@@ -50,58 +50,94 @@ float aveDif;
 unsigned char toggle;
 
 float aveCount;
-#define __DEBUG__
 
 int toggleCount1;
 int toggleCount2;
 int toggleTrue;
+unsigned int mp3Busy;
+unsigned int mp3ResetCount;
+unsigned int rcvData;
+unsigned int rcvBuf[20];
+unsigned int rcvPos;
+
+unsigned int wdtOnOff = 1;
+unsigned int timeOut;
 
 void main(void) {
     setUp();
-
-    for (int i = 0; i < 10; i++) {
-        ledOn();
-        __delay_ms(50);
-        ledOff();
-        __delay_ms(50);
-        CLRWDT();
-    }
+    
+//    for(int i=0; i<100; i++){
+//        timeCount++;
+//        serialDebug();
+//    }
+//    timeCount=0;
+    LATAbits.LATA4 = 0;
+    __delay_ms(1000);
+//        CLRWDT();
+    LATAbits.LATA4 = 1;
     __delay_ms(500);
-    CLRWDT();
+//        CLRWDT();
 
     setSerialDFMp3();
     //MP3RESET
     mp3_send_cmd(0x0C, 0, 0);
-    __delay_ms(500);
+    __delay_ms(1000);
+    //    CLRWDT();
+    __delay_ms(1000);
+    //    CLRWDT();
 
     //PLAY '01/001.mp3'
     mp3_send_cmd(0x0F, 1, 1);
+    //Play
+    mp3_send_cmd(0x0D, 0, 0);
     //Repeat Play
-    mp3_send_cmd(0x11, 0, 1);
-    //Volume 10
-    mp3_send_cmd(6, 0, 10);
+    mp3_send_cmd(0x11, 0, 0);
 
-    __delay_ms(500);
+    wdtOnOff = 0;
+    do {
+        __delay_ms(1);
+        mp3Busy = PORTCbits.RC5;
+        serialDebug();
+    } while (mp3Busy != 0);
+    //    CLRWDT();
+    wdtOnOff = 1;
 
-    //Volume 0
-    mp3_send_cmd(6, 0, 1);
+    for (int i = 0; i < 20; i++) {
+        //Volume 0
+        mp3_send_cmd(6, 0, i);
+        serialDebug();
+        __delay_ms(50);
+        //        CLRWDT();
+    }
+    for (int i = 0; i < 20; i++) {
+        //Volume 0
+        mp3_send_cmd(6, 0, 20 - i);
+        serialDebug();
+        __delay_ms(50);
+        //        CLRWDT();
+    }
 
     //Pause
     mp3_send_cmd(0x0E, 0, 0);
+    __delay_ms(50);
+
     status = 0;
     vol = 1;
+    ave1 = 0;
+    ave2 = 0;
+    baseLine = 0;
 
+    //    CLRWDT();
 
     while (1) {
 
-        aveCount = 4.0;
+        aveCount = 2.0;
 
         ledOn();
         __delay_ms(5);
-        num1Buf[index] = (adconv(5) * adconv(5)) / 10; // * adconv(5) * adconv(5)) / 10;
+        num1Buf[index] = (adconv(5) * adconv(5)) / 10;
         index = (index + 1) % BUFFER_LENGTH;
         num1 = (median(num1Buf, BUFFER_LENGTH));
-        if (num1 > 3000)num1 = 3000;
         ave1 = ave1 * ((aveCount - 1.0) / aveCount) + (float) (num1) * (1.0 / aveCount);
 
         ledOff();
@@ -111,23 +147,27 @@ void main(void) {
         ave2 = ave2 * ((aveCount - 1.0) / aveCount) + (float) (num2) * (1.0 / aveCount);
 
 
-        aveCount = 40.0;
-        baseLine = baseLine * ((aveCount - 1.0) / aveCount) + (ave1) * (1.0 / aveCount);
-        if (baseLine > 500)baseLine = 500;
-        if (baseLine > ave1) baseLine *= 0.9;
+        aveCount = 2.0;
 
+        //Light > IR
+        if ((ave1 > ave2)) {
+            baseLine = baseLine * ((aveCount - 1.0) / aveCount) + (ave1 - ave2) * (1.0 / aveCount); // + (ave2) * (5.0 / aveCount);
 
-        if ((baseLine >= 500) && (ave1 > baseLine)) {
-            if ((ave1 - baseLine) > 300) {
-                toggle = 1;
-            }
-        } else if (baseLine < 500) {
+        } else if ((ave2 > ave1)) {
+            baseLine *= 0.5; //baseLine * ((aveCount - 1.0) / aveCount) + (0) * (1.0 / aveCount); // + (ave2) * (5.0 / aveCount);
+        }
+
+        int hystheresis = 50;
+
+        if (baseLine > (100 + hystheresis)) {
+            toggle = 1;
+        } else if (baseLine < (100 - hystheresis)) {
             toggle = 0;
         }
 
-        serialDebug();
 
-        setSerialDFMp3();
+        mp3Busy = PORTCbits.RC5;
+        serialDebug();
 
         //Toggle Debounce
         if (toggle == 1) {
@@ -147,28 +187,50 @@ void main(void) {
             toggleCount1 = 0;
         }
 
+
         if (toggleTrue == 1) {
             if (status == 0) {
                 status = 1;
                 timeCount = 0;
-                //PLAY '01/001.mp3'
-                mp3_send_cmd(0x0F, 1, 1);
-                //Repeat Play
-                mp3_send_cmd(0x11, 0, 1);
-                //Play
-                mp3_send_cmd(0x0D, 0, 0);
+                mp3ResetCount = 0;
+
+                mp3Busy = PORTCbits.RC5;
+                //play
+                if (mp3Busy == 1) {
+                    //PLAY '01/001.mp3'
+                    mp3_send_cmd(0x0F, 1, 1);
+                    //Play
+                    mp3_send_cmd(0x0D, 0, 0);
+                }
             }
 
             //20sec count
             if (status == 1) {
                 fadeoutCount = 0;
+                if (mp3Busy == 0) {
+                    mp3ResetCount = 0;
+                }
 
-                if (timeCount < 2400) {
-                    
+                if (timeCount < 160) {
+
                     timeCount++;
 
+                    mp3Busy = PORTCbits.RC5;
+                    //loop
+                    if (mp3Busy == 1) {
+                        //PLAY '01/001.mp3'
+                        mp3_send_cmd(0x0F, 1, 1);
+                        //Play
+                        mp3_send_cmd(0x0D, 0, 0);
+                    }
+                    if (mp3ResetCount < 50) {
+                        mp3ResetCount++;
+                    } else {
+                        wdtOnOff = 0;
+                    }
+
                     //Fadein
-                    vol += 4;
+                    vol += (MAX_VOL / 4);
                     if (vol > MAX_VOL) {
                         vol = MAX_VOL;
                     }
@@ -176,6 +238,7 @@ void main(void) {
                     mp3_send_cmd(6, 0, vol);
 
                 } else {
+                    //                    wdtOnOff = 0;
 
                     //Fadeout
                     vol -= 2;
@@ -187,7 +250,12 @@ void main(void) {
                     } else {
                         //Volume Fadeout
                         mp3_send_cmd(6, 0, vol);
+
+                        if (mp3ResetCount < 50) {
+                            mp3ResetCount++;
+                        }
                     }
+
 
                 }
             }
@@ -199,6 +267,7 @@ void main(void) {
 
             if (fadeoutCount > 10) {
                 timeCount = 0;
+                mp3ResetCount = 0;
             } else {
                 fadeoutCount++;
             }
@@ -212,6 +281,7 @@ void main(void) {
                 //Volume Fadeout
                 mp3_send_cmd(6, 0, vol);
             }
+
 
         }
 

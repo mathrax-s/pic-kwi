@@ -33,7 +33,7 @@ void loop() {
 
         p = 4;
         d = ((buf[p + 0] & 0x7F) << 21) + ((buf[p + 1] & 0x7F) << 14) + ((buf[p + 2] & 0x7F) << 7) + (buf[p + 3] & 0x7F);
-        d=0;Serial.print(d); Serial.print(",");
+        Serial.print(d); Serial.print(",");
 
         p = 8;
         d = ((buf[p + 0] & 0x7F) << 21) + ((buf[p + 1] & 0x7F) << 14) + ((buf[p + 2] & 0x7F) << 7) + (buf[p + 3] & 0x7F);
@@ -44,11 +44,11 @@ void loop() {
         Serial.print(d); Serial.print(",");
 
         p = 16;
-        Serial.print(((buf[p] & 0x7F) << 7) + (buf[p + 1] & 0x7F) * 1600);
+        Serial.print(((buf[p] & 0x7F) << 7) + (buf[p + 1] & 0x7F) * 500);
         Serial.print(",");
         
         p = 18;
-        Serial.print(((buf[p] & 0x7F) << 7) + (buf[p + 1] & 0x7F)*80);
+        Serial.print(((buf[p] & 0x7F) << 7) + (buf[p + 1] & 0x7F)*400);
         Serial.print(",");
         
         p = 20;

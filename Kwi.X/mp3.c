@@ -39,7 +39,9 @@ void mp3_fill_checksum() {
 
 void mp3_send_cmd(uint8_t cmd, uint16_t high_arg, uint16_t low_arg) {
     unsigned int i;
-
+    
+    setSerialDFMp3();
+    
     send_buf[3] = cmd;
 
     send_buf[5] = high_arg;
@@ -52,5 +54,6 @@ void mp3_send_cmd(uint8_t cmd, uint16_t high_arg, uint16_t low_arg) {
         TXREG = send_buf[i];
     }
 
-    __delay_ms(5); //50
+    __delay_ms(50); //50
+//    CLRWDT();
 }

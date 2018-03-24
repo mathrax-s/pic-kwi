@@ -19,9 +19,11 @@ void interrupt InterTimer( void )
      if (TMR2IF == 1) {           // タイマー2の割込み発生か？
           count++ ;               // 割込み発生の回数をカウントする
           TMR2IF = 0 ;            // タイマー2割込フラグをリセット
-          if (count >= 125) {      // 割込みを125回カウントすると約１秒
+          if (count >= 10) {      // 割込みを125回カウントすると約１秒
                count = 0 ;
-               CLRWDT();
+               if(wdtOnOff==1){
+                   CLRWDT();
+               }
           }
      }
 }
